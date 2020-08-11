@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
+        integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .container {
+        width: 960px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    h1 {
+        padding: 15px 0;
+    }
+
+    table {
+        width: 100%;
+        border: 3px solid #dedede;
+    }
+
+    tr td {
+        border: 3px solid #dedede;
+        width: 150px;
+    }
+
+    .equiptable {
+        margin: 15px 10px;
+        display: inline-block;
+    }
+
+    button {
+        font-size: 18px;
+        padding: 5px 5px;
+        margin: 5px 5px;
+
+    }
+
+    button:hover {
+        background-color: grey;
+    }
+</style>
+
+
+
+<body>
+    <div id="containerhtml" class="container"></div>
+
+    <script type="text/javascript">
+        class Menu {
+            constructor(target, equips) {
+                this.view = $(`
+                    <div>
+                        <button id="btnaddmode">Add/Edit Mode</button><button id="btnsearchmode">Search/Delete</button>
+                        <div id="equipContainer"></div>
+                        <hr>
+                    </div>
+                `)
+                this.model = {
+                    equips: equips,
+                    part: [
+                        'head',
+                        'body',
+                        'leg',
+                    ]
+                }
+
+                this.ui = {
+                    btnaddmode: this.view.find('#btnaddmode'),
+                    btnsearchmode: this.view.find('#btnsearchmode'),
+                    container : this.view.find('#equipContainer'),
+
+                }
+
+                this.controlUI()
+                // target = $('#containerhtml')
+                target.html(this.view)
+            }
+            changeFeature(type,equip){
+                console.log('功能切換了唷 : ' , type)
+                if(type == 'search'){
+                    $.ajax({
+                        url: 'http://127.0.0.1:8802/equips/',
+                        success: (equips) => {
+                            new Maintenance(this.ui.container, equips)
+                        }
+                    })
+                }else if(type == 'edit'){
+                    $.ajax({
+                        url: 'http://127.0.0.1:8802/equips/',
+                        success: (equips) => {
+                            new CreatorUpdate(this.ui.container,equip)
+                        }
+                    })
+                }
+            }
+            controlUI() {
+                this.ui.btnsearchmode.click(() => {
+                    this.changeFeature('search')
+                })
+                this.ui.btnaddmode.click(() => {
+                    this.changeFeature('edit')
+                })
+            }
+
+        }
+
+
+        let menu = new Menu($('#containerhtml'), [])
+
+        class Maintenance {
+            constructor(target, equips) {
+                this.view = $(`
+                    <div>
+                        <h1>Equipment List</h1>
+                        <p style="font-size:18px">Maintenance Mode<p>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <th>Equip No.</th>
+                                    <th>Equipment</th>
+                                    <th>Part</th>
+                                    <th>Selling Price 
+                                         <select name="sortPrice" id="sortPrice">
+                                            <option>Choose</option>
+                                            <option id="ascending">Ascending</option>
+                                            <option id="descending">Descending</option>
+                                        </select>
+                                    </th>
+                                </tr>
+                            </tbody>
+                            <tbody id="equipmentlist">
+
+                            </tbody>
+                        </table>
+                        <hr>
+                        <div class="equiptable">Equ No.<input type="text" id="no"></div>
+                        <div class="equiptable" id="equ">Equipment<input type="text" id="equip"></div>
+                        <div class="equiptable"> Part <select name="part" id="part"><option>choose</option></select></div>
+                        <div class="equiptable" id="sellp">Selling Price<input type="text" id="price"></div>
+                        <button id="searchbutton">Search the data of equip</button>
+                    </div>
+                `)
+                this.model = {
+                    equips: equips,
+                    part: [
+                        'head',
+                        'body',
+                        'leg',
+                    ]
+                }
+
+                this.ui = {
+                    selectSortPrice : this.view.find('#sortPrice'),
+                    inputNo: this.view.find('#no'),
+                    inputEquip: this.view.find('#equip'),
+                    selectPart: this.view.find('#part'),
+                    inputPrice: this.view.find('#price'),
+                    EquipmentList: this.view.find('#equipmentlist'),
+                    searchbutton: this.view.find('#searchbutton'),
+                    
+                    equ: this.view.find('#equ'),
+                    sellp: this.view.find('#sellp'),
+                }
+
+                $.each(this.model.part, (i, item) => {
+                    this.ui.selectPart.append(`
+                        <option>${item}</option>
+                    `)
+                })
+                this.renderTable(this.model.equips)
+                this.controlUI()
+                // target = $('#containerhtml')
+                target.html(this.view)
+            }
+
+            getInputData() {
+                let equiplist = {
+                    no: this.ui.inputNo.val(),
+                    equip: this.ui.inputEquip.val(),
+                    part: this.ui.selectPart.val(),
+                    price: this.ui.inputPrice.val(),
+                }
+
+                return equiplist
+            }
+
+            controlUI() {
+
+
+
+                this.ui.searchbutton.click(() => {
+                    let inputs = this.getInputData()
+                    let eqs = this.searchByInput(inputs)
+                    this.renderTable(eqs)
+                })
+
+                this.ui.selectSortPrice.change((e)=>{
+                    let val = $(e.currentTarget).val()
+                    if(val == 'Ascending'){
+                        console.log('Ascending')
+                        this.model.equips.sort((a, b) => {
+                            return a.price - b.price
+                        })
+                        this.renderTable(this.model.equips)
+                    }else if(val == 'Descending'){
+                        console.log('Descending')
+                        this.model.equips.sort((a, b) => {
+                            return b.price - a.price
+                        })
+                        this.renderTable(this.model.equips)
+                    }
+                })
+            }
+            getIndexbyNo(no) {
+                let resultIndex = -1
+                this.model.equips.forEach((equip, index) => {
+                    if (equip.no == no) {
+                        resultIndex = index
+                    }
+                })
+                return resultIndex
+            }
+            searchByInput(inputs) {
+                let { no, equip, part } = inputs
+                let items = this.model.equips.filter((item) => {
+
+                    return item.part == part || item.equip.indexOf(equip) !== -1
+                })
+                return items
+            }
+
+            // 拿到資料，做表格 render 
+            renderTable(equipments) {
+                this.ui.EquipmentList.html('')
+                equipments.forEach((equipment, i) => {
+                    let { no, equip, part, price } = equipment
+
+                    let html = `
+                    <tr>
+                    <td>${no}</td>
+                    <td>${equip}</td>
+                    <td>${part}</td>
+                    <td>${price}</td>
+                    <td>
+                    <button data-no="${no}" class="doDelete">Delete</button>
+                    <button data-no="${no}" class="doEdit">Edit</button>
+                    </td>
+                    </tr>`
+
+                    this.ui.EquipmentList.append(html)
+
+                })
+
+                this.view.find('.doDelete').click((event) => {
+                    let self = $(event.currentTarget)
+                    let listNo = self.data('no')
+                    $.ajax({
+                        method: "delete",
+                        url: `http://127.0.0.1:8802/equips/${listNo}`,
+                        success: (equips) => {
+                            this.model.equips = equips
+                            this.renderTable(this.model.equips)
+                        }
+                    })
+                })
+                this.view.find('.doEdit').click((event) => {
+                    let self = $(event.currentTarget)
+                    let listNo = self.data('no')
+                    $.ajax({
+                        url: `http://127.0.0.1:8802/equips/${listNo}`,
+                        success: (equip) => {
+                            menu.changeFeature('edit' , equip)
+                        }
+                    })
+                })
+
+            }
+        }
+
+        class CreatorUpdate {
+            // equip 判斷是否為更新狀態
+            constructor(target, equip) {
+                this.view = $(`
+                    <div>
+                        
+                        <p style="font-size:18px">Add/Edit Mode<p>
+
+                        <hr>
+                        <div class="equiptable" style="display:block">Equ No.<input type="text" id="no"></div>
+                        <div class="equiptable" id="equ" style="display:block">Equipment<input type="text" id="equip"></div>
+                        <div class="equiptable" style="display:block"> Part <select name="part" id="part"><option>choose</option></select></div>
+                        <div class="equiptable" id="sellp" style="display:block">Selling Price<input type="text" id="price"></div>
+                        <button id="ctrlBtn"></button>
+                        
+                    </div>
+                `)
+                this.model = {
+                    equip: equip,
+                    isUpdate : (typeof equip != 'undefined' && equip != null),
+                    part: [
+                        'head',
+                        'body',
+                        'leg',
+                    ]
+                }
+                console.log(this.model.isUpdate , equip)
+
+                this.ui = {
+                    inputNo: this.view.find('#no'),
+                    inputEquip: this.view.find('#equip'),
+                    selectPart: this.view.find('#part'),
+                    inputPrice: this.view.find('#price'),
+                    EquipmentList: this.view.find('#equipmentlist'),
+                    addbutton: this.view.find('#addbutton'),
+                    searchbutton: this.view.find('#searchbutton'),
+                    btnaddmode: this.view.find('#btnaddmode'),
+                    btnsearchmode: this.view.find('#btnsearchmode'),
+                    equ: this.view.find('#equ'),
+                    sellp: this.view.find('#sellp'),
+                    updateButton: this.view.find('#updatebutton'),
+                    ctrlBtn : this.view.find('#ctrlBtn')
+
+                }
+
+                $.each(this.model.part, (i, item) => {
+                    this.ui.selectPart.append(`
+                        <option>${item}</option>
+                    `)
+                })
+                if(this.model.isUpdate){
+                    this.ui.ctrlBtn.html('Edit ')
+                    this.setInputData(this.model.equip)
+                }else{
+                    this.ui.ctrlBtn.html('Add ')
+                }
+                // this.renderTable(this.model.equips)
+                this.controlUI()
+                // target = $('#containerhtml')
+                target.html(this.view)
+            }
+            doAdd(){
+                let equiplist = this.getInputData()
+
+                let inputPass = this.validate(equiplist.equip,
+                    equiplist.price)
+
+                if (inputPass) {
+                    $.ajax({
+                        method: "post",
+                        url: `http://127.0.0.1:8802/equips?equip=${equiplist.equip}&part=${equiplist.part}&price=${equiplist.price}`,
+                        success: (equips) => {
+                            this.model.equips = equips
+                            this.renderTable(this.model.equips)
+                        }
+                    })
+
+                }
+
+            }
+            doEdit(){
+                let inputs = this.getInputData()
+                $.ajax({
+                    contentType: "application/json",
+                    method: "put",
+                    data: JSON.stringify(inputs),
+                    url: `http://127.0.0.1:8802/equips/${inputs.no}`,
+                    success: (equips) => {
+                        this.model.equips = equips
+                        this.renderTable(this.model.equips)
+                    }
+                })
+            }
+            controlUI() {
+
+                this.ui.ctrlBtn.click(() => {
+                    if(this.model.isUpdate){
+                        this.doEdit()
+                    }else{
+                        this.doAdd()
+                    }
+
+                })
+            }
+            setInputData(inputEquipment){
+                this.ui.inputNo.val(inputEquipment.no)
+                this.ui.inputEquip.val(inputEquipment.equip)
+                this.ui.selectPart.val(inputEquipment.part)
+                this.ui.inputPrice.val(inputEquipment.price)                
+            }
+            getInputData() {
+                let equiplist = {
+                    no: this.ui.inputNo.val(),
+                    equip: this.ui.inputEquip.val(),
+                    part: this.ui.selectPart.val(),
+                    price: this.ui.inputPrice.val(),
+                }
+
+                return equiplist
+            }
+
+            validate(equip, price) {
+                let success = true
+
+                if (equip = '' || !isNaN(equip)) {
+                    success = false
+                    this.ui.inputEquip.css({
+                        'background': 'red'
+                    })
+                    alert('Please enter the name of euipment.')
+
+                } else {
+                    this.ui.inputNo.css({
+                        'background': 'white'
+                    })
+                }
+
+                if (price = '' || isNaN(price)) {
+                    success = false
+                    this.ui.inputPrice.css({
+                        'background': 'red'
+                    })
+                    alert('Please enter price.')
+                } else {
+                    this.ui.inputNo.css({
+                        'background': 'white'
+                    })
+                }
+
+                return success
+            }
+
+            getIndexbyNo(no) {
+                let resultIndex = -1
+                this.model.equips.forEach((equip, index) => {
+                    if (equip.no == no) {
+                        resultIndex = index
+                    }
+                })
+                return resultIndex
+            }
+
+        }
+
+
+
+
+
+    </script>
+</body>

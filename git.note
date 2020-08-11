@@ -1,0 +1,19 @@
+https://github.com/Jerry-hsiao/jquery_equips.git
+
+git init
+
+# 寫 gitignore
+vi .gitignore
+node_modules
+/dist
+
+git add .
+git commit -m "First Equip Commit"
+
+git remote add origin https://github.com/Jerry-hsiao/jquery_equips.git
+
+git config user.name "Jerry-hsiao"
+
+git remote -v
+
+git push -u origin master
